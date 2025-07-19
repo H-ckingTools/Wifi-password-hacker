@@ -3,41 +3,55 @@
 #include<unistd.h>
 #include<arpa/inet.h>
 
-int find_index(const char *src,int time){
-    int temp;
-    int len = strlen(src);
-    for(int pos = 0;pos <= len;pos++){
-        if(src[pos] == ' '){
-            temp++;
-            if(temp == time) return pos;
-        }
-    }
-}
+struct connected {
+    char IP[20];
+    char HW_type[10];
+    char Flag[10];
+    char Mac[30];
+    char Mask[10];
+    char Device_name[30];
+};
 
-void list_connected_wifi(const char *server_name){
+void list_connected_wifi(){
     FILE *fp;
-    char buff[3000];
-    char command[100];
-    char response[4000];
-    snprintf(command,sizeof(command),"iw dev %s station dump",server_name);
-    fp = popen(command,"r");
-    
-    if(fp == NULL) printf("Command run failed\n");
-    while (fgets(buff,sizeof(buff),fp))
-    {
-        strncat(response,buff,sizeof(buff));
+    char line[100];
+    struct connected con_dev;
+    fp = fopen("/proc/net/arp","r");
+    if(fp == NULL) perror("File not opened");
+    //Skip title or header section
+    fgets(line,sizeof(line),fp);
+    while(fgets(line,sizeof(line),fp)){
+        sscanf(line,"%s %s %s %s %c %s",con_dev.IP,con_dev.HW_type,con_dev.Flag,con_dev.Mac,con_dev.Mask,con_dev.Device_name);
+        printf("Connnected device : \n\n");
+        printf("Device name : %s\n",con_dev.Device_name);
+        printf("Device Ip : %s\n",con_dev.IP);
     }
-    int i = 0;
-    char *tok = strtok(response," ");
-    char *hello[100];
-    while(tok != NULL){
-        hello[i++] = tok;
-        tok = strtok(NULL," ");
+
+    int sock;
+    struct sockaddr_in server;
+
+    // Create socket
+    sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
+        perror("Socket creation failed");
+
     }
-    printf("Finally mac address found : %s\n",hello[1]);
+
+    // Server info
+    server.sin_family = AF_INET;
+    server.sin_port = htons(1234);
+    server.sin_addr.s_addr = inet_addr("192.168.37.13");
+
+    // Connect to server
+    if (connect(sock, (struct sockaddr*)&server, sizeof(server)) < 0) {
+        perror("Connection failed");
+        close(sock);
+    }
+
+    printf("Connected successfully!\n");
+    close(sock);
 }
 
 int main(){
-    list_connected_wifi("wlx98ba5fece6d3");
-    // printf("%d",find_index("hello this is mine fucking game"));
+    list_connected_wifi();
 }
