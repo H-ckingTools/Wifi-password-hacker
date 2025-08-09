@@ -1,28 +1,25 @@
-import pywifi
-from pywifi import const
-import time
+from scapy.all import ARP, Ether, srp
+from socket import gethostbyaddr
 
-def find_open_networks():
-    wifi = pywifi.PyWiFi()
-    iface = wifi.interfaces()[0]  # Use first Wi-Fi interface
+def hostname(ip):
+    try:
+        return gethostbyaddr(ip)
+    except:
+        return 'Local Network'
 
-    iface.scan()  # Start scanning
-    time.sleep(3)  # Wait for scan to complete
+def arp_scan(ip_range):
+    arp = ARP(pdst=ip_range)
+    ether = Ether(dst="ff:ff:ff:ff:ff:ff")
+    packet = ether / arp
 
-    results = iface.scan_results()  # Get scan results
-    open_networks = []
+    result = srp(packet, timeout=2, verbose=0)[0]
 
-    for network in results:
-        # If network uses no authentication (open network)
-        if network.akm == [const.AKM_TYPE_NONE]:
-            open_networks.append(network.ssid)
+    devices = []
+    for sent, received in result:
+        devices.append({'ip': received.psrc, 'mac': received.hwsrc})
 
-    if open_networks:
-        print("Open (unsecured) Wi-Fi networks found:")
-        for ssid in open_networks:
-            print(f"  - {ssid}")
-    else:
-        print("No open Wi-Fi networks found.")
+    for device in devices:
+        print(f"IP: {device['ip']} | MAC: {device['mac']} | name : {hostname(device['ip'])}")
 
-if __name__ == '__main__':
-    find_open_networks()
+# Example usage
+arp_scan("192.168.28.0/24")

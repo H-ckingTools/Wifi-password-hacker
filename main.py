@@ -1,8 +1,8 @@
-from socket import *
+from socket import gethostbyaddr
 import pywifi
 from time import sleep
 from os import system
-import ipaddress
+from scapy.all import ARP,Ether,srp
 
 system('clear')
 
@@ -106,22 +106,25 @@ def wifi_bruteforce():
                 print(f'SSID : {name}\npassword found : {password}')
                 break
 
-def pretending_wifi():
-    wifi_info = dict()
-    init = pywifi.PyWiFi()
-    interface = init.interfaces()[0]
-    status = interface.status()
+def hostname(ip:str):
+    try:
+        hn = gethostbyaddr(ip)[0]
+    except:
+        hn = 'local network(router or hotspot)'       
+    return hn
+    #'hn' stands for host-name.
 
-    sock = socket(AF_INET,SOCK_DGRAM)
-    sock.connect(('8.8.8.8',80))
-    getip = sock.getsockname()[0]
+def get_con_devs(ip:str,net_iface:str):
+    arp = ARP(pdst=ip)
+    ether = Ether(dst='ff:ff:ff:ff:ff:ff')
+    pack = ether / arp
 
-    if status == pywifi.const.IFACE_CONNECTED:
-        profile = interface.network_profiles()
-        for _profile in profile:
-            wifi_info.update({'SSID':_profile.ssid,'IP':getip})
+    result = srp(pack,iface=net_iface,timeout=2,verbose=0)[0]
 
-    ip_init = ipaddress.ip_network(getip,strict=False)
+    for sent, received in result:
+        '''
+        psrc - To find device if connected to network
+        hwsrc - To find the target mac
+        '''
+        print(f'Device ip : {received.psrc}\nDevice mac : {received.hwsrc}\nHost : {hostname(received.psrc)}') 
 
-pretending_wifi()
-            
