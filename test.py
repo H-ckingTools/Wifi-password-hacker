@@ -1,25 +1,11 @@
-from scapy.all import ARP, Ether, srp
-from socket import gethostbyaddr
+from scapy.all import *
 
-def hostname(ip):
-    try:
-        return gethostbyaddr(ip)
-    except:
-        return 'Local Network'
+iface = "wlan0"  # Your Wi-Fi card in monitor mode
 
-def arp_scan(ip_range):
-    arp = ARP(pdst=ip_range)
-    ether = Ether(dst="ff:ff:ff:ff:ff:ff")
-    packet = ether / arp
+def find_ap(pkt):
+    if pkt.haslayer(Dot11Beacon):  # Beacon frame
+        bssid = pkt[Dot11].addr2   # AP's MAC
+        ssid = pkt[Dot11Elt].info.decode(errors='ignore')  # Network name
+        print(f"SSID: {ssid}, BSSID: {bssid}")
 
-    result = srp(packet, timeout=2, verbose=0)[0]
-
-    devices = []
-    for sent, received in result:
-        devices.append({'ip': received.psrc, 'mac': received.hwsrc})
-
-    for device in devices:
-        print(f"IP: {device['ip']} | MAC: {device['mac']} | name : {hostname(device['ip'])}")
-
-# Example usage
-arp_scan("192.168.28.0/24")
+sniff(iface=iface, prn=find_ap, store=0)

